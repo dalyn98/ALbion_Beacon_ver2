@@ -1,0 +1,21 @@
+{
+  "region": "ASIA",
+  "endpoint": {
+    "telemetry": "https://example.invalid/telemetry",
+    "auth": "https://example.invalid/auth"
+  },
+  "privacy": {
+    "upload_opt_in": false,
+    "mask_nickname": true
+  },
+  "heartbeat": {
+    "interval_sec": 120,
+    "miss_off_min": 10,
+    "stuck_off_min": 30,
+    "jitter_tolerance_sec": 10
+  },
+  "locale": [
+    "ko",
+    "en"
+  ]
+}
