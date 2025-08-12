@@ -1,8 +1,8 @@
 """
-Albion Beacon CLI — Milestone 1
-PowerShell 기준 사용 예:
-  python -m src.main heartbeat --node martlock --status active --nick "YourNick"
-  python -m src.main auth status --nick "YourNick" --gm "YourNick"
+Albion Beacon CLI — Milestone 2
+Adds:
+  - auth gate: Print JSON {state, render_gm_ui}
+  - diagnose: Npcap soft detection (paths) + pcap module check
 """
 from __future__ import annotations
 import argparse, json, pathlib, time, uuid, os, sys
@@ -32,7 +32,6 @@ class RoleState:
     GM_VERIFIED = "GM_VERIFIED"
 
 def _normalize_nick(nick: str) -> str:
-    # 최소 정규화: trim + lower + collapse spaces
     base = " ".join(nick.strip().split())
     return base.lower()
 
@@ -41,7 +40,7 @@ def _sha256_hex(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 def _masked_id(nick: str) -> str:
-    salt = os.environ.get("AB_SALT", "dev-salt")  # TODO: prod에서 교체
+    salt = os.environ.get("AB_SALT", "dev-salt")
     return _sha256_hex(_normalize_nick(nick) + salt)
 
 class IdentitySM:
@@ -87,13 +86,13 @@ class HeartbeatManager:
         }
 
     def tick(self, *, app: str, nick: str, node_id: str, status: str) -> dict:
-        payload = self.build_payload(app=app, nick=nick, node_id=node_id, status=status)
+        payload = self.build_payload(app=app, nick=nick, node_id=node, status=status)
         self.seq += 1
         return payload
 
+# ---- Commands ----
 def cmd_auth(args: argparse.Namespace) -> int:
     sm = IdentitySM(threshold=0.80)
-    # 데모용: --nick은 conf=1.0 가정, --gm은 conf=1.0 가정
     if args.subcmd == "status":
         if not args.nick:
             print("[error] --nick 은 필수입니다.")
@@ -104,7 +103,17 @@ def cmd_auth(args: argparse.Namespace) -> int:
         print(f"state={sm.state}")
         print(f"nick_id={_masked_id(args.nick)}")
         return 0
-    print("Usage: auth status --nick <NICK> [--gm <GM_NAME>]")
+    if args.subcmd == "gate":
+        if not args.nick:
+            print("[error] --nick 은 필수입니다.")
+            return 2
+        sm.update_self(args.nick, 1.0)
+        if args.gm:
+            sm.update_gm(args.gm, 1.0)
+        out = {"state": sm.state, "render_gm_ui": sm.state == RoleState.GM_VERIFIED}
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
+    print("Usage: auth status|gate --nick <NICK> [--gm <GM_NAME>]")
     return 0
 
 def cmd_heartbeat(args: argparse.Namespace) -> int:
@@ -129,15 +138,46 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
         print("\n[hb] stopped")
     return 0
 
+def cmd_diagnose(args: argparse.Namespace) -> int:
+    print(f"[Albion Beacon] Diagnose — version {get_version()}")
+    # 1) pcap module
+    try:
+        import pcap  # type: ignore
+        print("pcap module: available")
+    except Exception:
+        print("pcap module: not found (OK for now)")
+
+    # 2) Npcap soft detection
+    candidates = [
+        r"C:\Windows\System32\Npcap\Packet.dll",
+        r"C:\Windows\System32\Npcap",
+        r"C:\Program Files\Npcap",
+        r"C:\Program Files (x86)\Npcap",
+    ]
+    found = False
+    for path in candidates:
+        if pathlib.Path(path).exists():
+            print(f"Npcap: found at {path}")
+            found = True
+            break
+    if not found:
+        print("Npcap: not found — please install from https://npcap.com/ (normal installer)")
+
+    return 0
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ab", description="Albion Beacon CLI")
     sub = p.add_subparsers(dest="command")
 
-    p_auth = sub.add_parser("auth", help="인증/권한 상태")
+    p_auth = sub.add_parser("auth", help="인증/권한 상태 & UI 게이팅")
     sub_auth = p_auth.add_subparsers(dest="subcmd")
     p_auth_status = sub_auth.add_parser("status", help="현재 상태 보기")
     p_auth_status.add_argument("--nick", required=False)
     p_auth_status.add_argument("--gm", required=False)
+
+    p_auth_gate = sub_auth.add_parser("gate", help="GM UI 렌더 가능 여부(JSON)")
+    p_auth_gate.add_argument("--nick", required=False)
+    p_auth_gate.add_argument("--gm", required=False)
 
     p_hb = sub.add_parser("heartbeat", help="하트비트 송신(로컬 프린트)")
     p_hb.add_argument("--nick", required=False, help="표시 닉네임(마스킹됨)")
@@ -145,11 +185,16 @@ def main(argv: list[str] | None = None) -> int:
     p_hb.add_argument("--status", required=False, help="active/idle/stuck/offline/off")
     p_hb.add_argument("--once", action="store_true", help="1회 출력 후 종료")
 
+    p_diag = sub.add_parser("diagnose", help="환경 진단(Npcap 등)")
+    # no args
+
     args = p.parse_args(argv)
     if args.command == "auth":
         return cmd_auth(args)
     if args.command == "heartbeat":
         return cmd_heartbeat(args)
+    if args.command == "diagnose":
+        return cmd_diagnose(args)
 
     p.print_help()
     return 0
