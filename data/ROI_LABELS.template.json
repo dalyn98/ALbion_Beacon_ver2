@@ -1,0 +1,58 @@
+[
+  {
+    "id": "hud_nick",
+    "label": "HUD Nickname",
+    "type": "text",
+    "x_pct": 0.0,
+    "y_pct": 0.0,
+    "w_pct": 0.0,
+    "h_pct": 0.0,
+    "locale": [
+      "ko",
+      "en"
+    ],
+    "tbd": true
+  },
+  {
+    "id": "char_card_nick_self",
+    "label": "Character Card (Self)",
+    "type": "text",
+    "x_pct": 0.0,
+    "y_pct": 0.0,
+    "w_pct": 0.0,
+    "h_pct": 0.0,
+    "locale": [
+      "ko",
+      "en"
+    ],
+    "tbd": true
+  },
+  {
+    "id": "char_card_nick_other",
+    "label": "Character Card (Other)",
+    "type": "text",
+    "x_pct": 0.0,
+    "y_pct": 0.0,
+    "w_pct": 0.0,
+    "h_pct": 0.0,
+    "locale": [
+      "ko",
+      "en"
+    ],
+    "tbd": true
+  },
+  {
+    "id": "guild_master_name",
+    "label": "Guild Master Name",
+    "type": "text",
+    "x_pct": 0.0,
+    "y_pct": 0.0,
+    "w_pct": 0.0,
+    "h_pct": 0.0,
+    "locale": [
+      "ko",
+      "en"
+    ],
+    "tbd": true
+  }
+]
