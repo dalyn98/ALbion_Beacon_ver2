@@ -1,0 +1,28 @@
+{
+  "ko": {
+    "gm": [
+      "길드마스터"
+    ],
+    "nick_labels": [
+      "닉네임",
+      "캐릭터"
+    ],
+    "hud": [
+      "HUD",
+      "닉네임"
+    ]
+  },
+  "en": {
+    "gm": [
+      "Guild Master"
+    ],
+    "nick_labels": [
+      "Nickname",
+      "Character"
+    ],
+    "hud": [
+      "HUD",
+      "Nickname"
+    ]
+  }
+}
