@@ -1,11 +1,11 @@
 """
-Albion Beacon CLI — Milestone 2
+Albion Beacon CLI — Milestone 3
 Adds:
-  - auth gate: Print JSON {state, render_gm_ui}
-  - diagnose: Npcap soft detection (paths) + pcap module check
+  - Presence state-transition logging (demo mode: 1 sec == 1 min)
+  - Fix: HeartbeatManager.tick passes correct node_id
 """
 from __future__ import annotations
-import argparse, json, pathlib, time, uuid, os, sys
+import argparse, json, pathlib, time, uuid, os
 from typing import Optional
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -60,6 +60,13 @@ class IdentitySM:
                 self.state = RoleState.GM_VERIFIED
 
 # ---- Presence Heartbeat ----
+class PresenceState:
+    ACTIVE = "active"
+    IDLE = "idle"
+    STUCK = "stuck"
+    OFFLINE = "offline"
+    OFF = "off"
+
 class HeartbeatManager:
     def __init__(self, settings: dict, session_id: Optional[str] = None):
         hb = settings.get("heartbeat", {})
@@ -69,6 +76,8 @@ class HeartbeatManager:
         self.jitter_tol = int(hb.get("jitter_tolerance_sec", 10))
         self.session_id = session_id or str(uuid.uuid4())
         self.seq = 0
+        self.presence_state = PresenceState.ACTIVE
+        self._last_active_min = 0  # virtual minutes since start
 
     def _now_ms(self) -> int:
         return int(time.time() * 1000)
@@ -86,9 +95,27 @@ class HeartbeatManager:
         }
 
     def tick(self, *, app: str, nick: str, node_id: str, status: str) -> dict:
-        payload = self.build_payload(app=app, nick=nick, node_id=node, status=status)
+        payload = self.build_payload(app=app, nick=nick, node_id=node_id, status=status)
         self.seq += 1
+        # presence bookkeeping: treat 'active' as activity
+        if status == PresenceState.ACTIVE:
+            self._last_active_min = 0
+            if self.presence_state != PresenceState.ACTIVE:
+                print(f'[presence] transition: {self.presence_state} -> active')
+                self.presence_state = PresenceState.ACTIVE
         return payload
+
+    # demo tick in "virtual minutes"
+    def demo_advance_min(self, minutes: int = 1) -> None:
+        self._last_active_min += minutes
+        # 10m miss → offline
+        if self._last_active_min >= self.miss_off_min and self.presence_state != PresenceState.OFFLINE:
+            print(f'[presence] transition: {self.presence_state} -> offline (miss {self.miss_off_min}m)')
+            self.presence_state = PresenceState.OFFLINE
+        # 30m stuck → off
+        if self._last_active_min >= self.stuck_off_min and self.presence_state != PresenceState.OFF:
+            print(f'[presence] transition: {self.presence_state} -> off (stuck {self.stuck_off_min}m)')
+            self.presence_state = PresenceState.OFF
 
 # ---- Commands ----
 def cmd_auth(args: argparse.Namespace) -> int:
@@ -128,6 +155,19 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
         print(json.dumps(hb.tick(app=app, nick=nick, node_id=node, status=status), ensure_ascii=False))
         return 0
 
+    if args.demo:
+        print(f"[hb] DEMO mode: 1 sec == 1 min, miss_off={hb.miss_off_min}m, stuck_off={hb.stuck_off_min}m")
+        try:
+            while True:
+                payload = hb.tick(app=app, nick=nick, node_id=node, status=status)
+                print(json.dumps(payload, ensure_ascii=False))
+                time.sleep(1)           # 1 sec per virtual minute
+                hb.demo_advance_min(1)  # advance 1 minute
+        except KeyboardInterrupt:
+            print("\n[hb] demo stopped")
+        return 0
+
+    # normal mode (real interval)
     print(f"[hb] interval={hb.interval}s, jitter±{hb.jitter_tol}s, session_id={hb.session_id}")
     try:
         while True:
@@ -140,14 +180,13 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
 
 def cmd_diagnose(args: argparse.Namespace) -> int:
     print(f"[Albion Beacon] Diagnose — version {get_version()}")
-    # 1) pcap module
+    # pcap module
     try:
         import pcap  # type: ignore
         print("pcap module: available")
     except Exception:
         print("pcap module: not found (OK for now)")
-
-    # 2) Npcap soft detection
+    # Npcap soft detection
     candidates = [
         r"C:\Windows\System32\Npcap\Packet.dll",
         r"C:\Windows\System32\Npcap",
@@ -162,7 +201,6 @@ def cmd_diagnose(args: argparse.Namespace) -> int:
             break
     if not found:
         print("Npcap: not found — please install from https://npcap.com/ (normal installer)")
-
     return 0
 
 def main(argv: list[str] | None = None) -> int:
@@ -174,19 +212,18 @@ def main(argv: list[str] | None = None) -> int:
     p_auth_status = sub_auth.add_parser("status", help="현재 상태 보기")
     p_auth_status.add_argument("--nick", required=False)
     p_auth_status.add_argument("--gm", required=False)
-
     p_auth_gate = sub_auth.add_parser("gate", help="GM UI 렌더 가능 여부(JSON)")
     p_auth_gate.add_argument("--nick", required=False)
     p_auth_gate.add_argument("--gm", required=False)
 
-    p_hb = sub.add_parser("heartbeat", help="하트비트 송신(로컬 프린트)")
+    p_hb = sub.add_parser("heartbeat", help="하트비트 송신 + 상태 전이 로그")
     p_hb.add_argument("--nick", required=False, help="표시 닉네임(마스킹됨)")
     p_hb.add_argument("--node", required=False, help="node_id (예: ASIA:martlock:portal_n1)")
     p_hb.add_argument("--status", required=False, help="active/idle/stuck/offline/off")
     p_hb.add_argument("--once", action="store_true", help="1회 출력 후 종료")
+    p_hb.add_argument("--demo", action="store_true", help="데모모드(1초=1분)")
 
     p_diag = sub.add_parser("diagnose", help="환경 진단(Npcap 등)")
-    # no args
 
     args = p.parse_args(argv)
     if args.command == "auth":
