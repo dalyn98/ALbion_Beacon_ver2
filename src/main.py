@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9b20f32 (chore(scaffold): contracts/docs/scripts/CI for Replit sync)
 """
 Albion Beacon CLI — Consolidated (M1..M4)
 Includes:
@@ -342,3 +346,4 @@ def main(argv: List[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+'@ | Set-Content -Encoding utf8 .\src\main.py

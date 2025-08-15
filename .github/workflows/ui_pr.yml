@@ -1,0 +1,27 @@
+name: UI PR
+on:
+  pull_request:
+    branches: [dev]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate OpenAPI exists
+        run: test -f contracts/openapi.yaml
+      - name: Validate JSON Schemas exist
+        run: test -f contracts/heartbeat.schema.json && test -f contracts/nearby.schema.json
+      - name: Generate Docs
+        shell: bash
+        run: |
+          echo "Sync docs from contracts..."
+          python3 - <<'PY'
+from pathlib import Path
+p = Path('docs/API_SUMMARY.md')
+p.write_text('# API Summary (auto)\n\n- Source: contracts/openapi.yaml\n- Schemas: heartbeat, nearby\n')
+PY
+      - name: Upload Docs Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: docs/

@@ -1,0 +1,86 @@
+openapi: 3.0.3
+info:
+  title: ALbion_Beacon Local API (Mock)
+  version: 0.5.0
+servers:
+  - url: http://127.0.0.1:8787
+paths:
+  /v1/health:
+    get:
+      responses:
+        '200': { description: OK }
+  /v1/auth/gate:
+    post:
+      requestBody: { required: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthGate'
+  /v1/heartbeat:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Heartbeat'
+  /v1/events/nearby:
+    get:
+      parameters:
+        - name: hop
+          in: query
+          schema: { type: integer, maximum: 8, default: 8 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Nearby'
+components:
+  schemas:
+    Heartbeat:
+      type: object
+      required: [nick, region, pos, party, ts]
+      properties:
+        nick: { type: string }
+        region: { type: string, enum: [ASIA] }
+        pos:
+          type: object
+          required: [x, y]
+          properties:
+            x: { type: number, minimum: 0, maximum: 1 }
+            y: { type: number, minimum: 0, maximum: 1 }
+        party: { type: integer, minimum: 1, maximum: 20 }
+        ts: { type: integer }
+    Nearby:
+      type: object
+      required: [nick, dist, region, pos]
+      properties:
+        nick: { type: string }
+        dist: { type: integer, minimum: 0 }
+        region: { type: string, enum: [ASIA] }
+        pos:
+          type: object
+          required: [x, y]
+          properties:
+            x: { type: number, minimum: 0, maximum: 1 }
+            y: { type: number, minimum: 0, maximum: 1 }
+    AuthGate:
+      type: object
+      required: [nick, gm]
+      properties:
+        nick: { type: string }
+        gm: { type: boolean }

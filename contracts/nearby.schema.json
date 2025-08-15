@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nearby",
+  "type": "object",
+  "required": [
+    "nick",
+    "dist",
+    "region",
+    "pos"
+  ],
+  "properties": {
+    "nick": {
+      "type": "string"
+    },
+    "dist": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "region": {
+      "type": "string",
+      "enum": [
+        "ASIA"
+      ]
+    },
+    "pos": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

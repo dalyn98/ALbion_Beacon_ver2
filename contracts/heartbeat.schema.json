@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Heartbeat",
+  "type": "object",
+  "required": [
+    "nick",
+    "region",
+    "pos",
+    "party",
+    "ts"
+  ],
+  "properties": {
+    "nick": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string",
+      "enum": [
+        "ASIA"
+      ]
+    },
+    "pos": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "party": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
+    },
+    "ts": {
+      "type": "integer"
+    }
+  }
+}
